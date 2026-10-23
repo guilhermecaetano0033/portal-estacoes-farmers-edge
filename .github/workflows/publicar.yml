@@ -35,7 +35,6 @@ jobs:
           FARM_USER: ${{ secrets.FARM_USER }}
           FARM_PASS: ${{ secrets.FARM_PASS }}
           FARM_TOKEN: ${{ secrets.FARM_TOKEN }}
-          FARM_TOKEN_SCHEME: ${{ vars.FARM_TOKEN_SCHEME }}
           BACKFILL_START: '2026-09-01'
         run: python atualizar.py
       - name: Configurar Pages

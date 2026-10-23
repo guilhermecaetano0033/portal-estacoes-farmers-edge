@@ -73,36 +73,51 @@ def month_range(start, end):
             y, m = y + 1, 1
 
 
+class FarmTokenSession(requests.Session):
+    """Anexa token apenas em chamadas HTTPS ao host admin.farmcommand.com."""
+    def __init__(self, token):
+        super().__init__()
+        self._farm_token = token
+        self.headers.update({'Accept': 'application/json', 'User-Agent': 'WeatherDataPortal/1.1'})
+
+    def request(self, method, url, **kwargs):
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        if parsed.scheme != 'https' or parsed.hostname != 'admin.farmcommand.com':
+            raise RuntimeError('Destino não autorizado para a sessão meteorológica')
+        params = dict(kwargs.pop('params', {}) or {})
+        params['token'] = self._farm_token
+        # Evita redirecionamento de URL contendo token para outro host.
+        response = super().request(method, url, params=params, allow_redirects=False, **kwargs)
+        if 300 <= response.status_code < 400:
+            raise RuntimeError('A API retornou redirecionamento inesperado; nenhuma URL de login foi seguida')
+        return response
+
+
 def auth_session():
+    """Obtém token temporário via POST /token-login/ com os Secrets FARM_USER/PASS.
+    Também aceita FARM_TOKEN já emitido, se fornecido por meio seguro.
+    """
     token = os.environ.get('FARM_TOKEN', '').strip()
-    user = os.environ.get('FARM_USER', '').strip()
-    password = os.environ.get('FARM_PASS', '').strip()
-    s = requests.Session()
-    s.headers.update({'Accept': 'application/json', 'User-Agent': 'WeatherDataPortal/1.0'})
-    if token:
-        # FARM_TOKEN deve conter apenas o valor; FARM_TOKEN_SCHEME normalmente 'Token' ou 'Bearer'.
-        scheme = os.environ.get('FARM_TOKEN_SCHEME', '').strip() or 'Token'
-        if scheme not in ('Token', 'Bearer'):
-            raise ValueError('FARM_TOKEN_SCHEME inválido (Token ou Bearer).')
-        s.headers['Authorization'] = f'{scheme} {token}'
-    elif user and password:
-        # Fluxo de login compatível com o script legado fornecido.
-        login = API + '/login/'
-        r = s.get(login, timeout=40)
-        r.raise_for_status()
-        csrf = s.cookies.get('csrftoken')
-        if not csrf:
-            raise RuntimeError('FarmCommand não retornou CSRF; configure FARM_TOKEN ou ajuste o login.')
-        r = s.post(login, data={'username': user, 'password': password,
-                                'csrfmiddlewaretoken': csrf},
-                   headers={'Referer': login}, timeout=40)
-        r.raise_for_status()
-        if '/login/' in r.url:
-            raise RuntimeError('Falha no login FarmCommand.')
-        s.headers.update({'Referer': API + '/', 'X-CSRFToken': s.cookies.get('csrftoken', csrf)})
-    else:
-        raise RuntimeError('Configure FARM_TOKEN ou FARM_USER e FARM_PASS em GitHub Secrets.')
-    return s
+    if not token:
+        user = os.environ.get('FARM_USER', '').strip()
+        password = os.environ.get('FARM_PASS', '').strip()
+        if not user or not password:
+            raise RuntimeError('Configure FARM_USER e FARM_PASS nos GitHub Actions Secrets.')
+        response = requests.post(
+            API + '/token-login/',
+            json={'username': user, 'password': password},
+            headers={'Accept': 'application/json'}, timeout=30, allow_redirects=False)
+        if response.status_code != 200:
+            raise RuntimeError(f'Falha no token-login do FarmCommand: HTTP {response.status_code}')
+        try:
+            token = response.json().get('token')
+        except ValueError as exc:
+            raise RuntimeError('Resposta do token-login não é JSON') from exc
+        if not isinstance(token, str) or not token.strip():
+            raise RuntimeError('token-login não retornou um token válido')
+        logging.info('Token do FarmCommand obtido com sucesso (valor oculto)')
+    return FarmTokenSession(token)
 
 
 def fetch(s, station_id, start, end):
@@ -174,7 +189,7 @@ def collect(config, start, end, refresh_days):
                     write_json(out, {'station_id': sid, 'month': f'{a:%Y-%m}', 'rows': rows})
                     saved += len(rows)
                 except Exception as exc:
-                    errors.append(f'{slug}/{sid}/{a:%Y-%m}: {type(exc).__name__}: {exc}')
+                    errors.append(f'{slug}/{sid}/{a:%Y-%m}: {type(exc).__name__}: falha na consulta (detalhe omitido para proteger o token)')
             counts[slug][str(sid)] = saved
     if errors:
         for err in errors:

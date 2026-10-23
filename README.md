@@ -19,8 +19,8 @@ O navegador acessa apenas JSONs estáticos gerados previamente. **As credenciais
 ## Publicar no GitHub
 
 1. Crie um repositório **sem colocar credenciais ou outros códigos legados**; suba o conteúdo desta pasta para a raiz. Os scripts de exemplo enviados não devem ir ao repositório.
-2. Em **Settings → Secrets and variables → Actions → Secrets**, configure **`FARM_USER` e `FARM_PASS`** (login legado mostrado nos seus arquivos) **ou `FARM_TOKEN`** (token de API permitido). **Jamais** armazene credenciais no JavaScript/HTML ou `clientes.json`.
-3. Se usar `FARM_TOKEN`, configure a variável `FARM_TOKEN_SCHEME` como `Token` (padrão) ou `Bearer`, de acordo com a autenticação realmente adotada pela sua conta.
+2. Em **Settings → Secrets and variables → Actions → Secrets**, configure **`FARM_USER` e `FARM_PASS`** (login legado mostrado nos seus arquivos) **ou `FARM_TOKEN`** (token já emitido e autorizado). **Jamais** armazene credenciais no JavaScript/HTML ou `clientes.json`.
+3. A autenticação padrão utiliza `POST /token-login/` e insere o token retornado no parâmetro `token` das consultas horárias. Não é necessário configurar `FARM_TOKEN_SCHEME`.
 4. Em **Settings → Pages → Build and deployment**, selecione **GitHub Actions**.
 5. Em **Actions → Atualizar estações e publicar portal → Run workflow**, execute manualmente uma vez. Verifique o log; uma falha de autenticação ou de API não publicará dados novos.
 6. Links, após a publicação: `https://SEU_USUARIO.github.io/NOME_REPOSITORIO/tessaro.html` e `/fenix.html`.
@@ -49,3 +49,7 @@ Abra `http://localhost:8000/tessaro.html`. O comando de exportação local consu
 - O ZIP usa o formato padrão **STORE** (sem compressão) para funcionar sem bibliotecas de terceiros. Contém CSVs UTF-8 com BOM e separador `;` para Excel em português.
 - Dados antigos fora do recorte inicial não aparecem até você ajustar `BACKFILL_START` e executar novamente.
 - O fluxo inicial foi elaborado segundo exemplos de endpoints e autenticação dos scripts fornecidos, mas a autorização efetiva da sua conta e a compatibilidade da autenticação precisam ser validadas na primeira execução.
+
+## Atualização da autenticação (23/10/2026)
+
+Corrigido o método antigo de autenticação via página `/login/`. O script agora obtém token em `/token-login/` com os Secrets e o aplica somente ao host HTTPS `admin.farmcommand.com`, sem imprimir tokens. Não envie o `farm_auth.py` pessoal ao GitHub: ele contém credenciais embutidas. Altere imediatamente qualquer senha exposta nesse arquivo.
