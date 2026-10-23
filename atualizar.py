@@ -87,7 +87,9 @@ class FarmTokenSession(requests.Session):
             raise RuntimeError('Destino não autorizado para a sessão meteorológica')
         params = dict(kwargs.pop('params', {}) or {})
         params['token'] = self._farm_token
-        # Evita redirecionamento de URL contendo token para outro host.
+        # requests.Session.get() ja define allow_redirects=True; removemos a opcao
+        # antes de fixa-la em False para impedir vazamento do token em redirects.
+        kwargs.pop('allow_redirects', None)
         response = super().request(method, url, params=params, allow_redirects=False, **kwargs)
         if 300 <= response.status_code < 400:
             raise RuntimeError('A API retornou redirecionamento inesperado; nenhuma URL de login foi seguida')
