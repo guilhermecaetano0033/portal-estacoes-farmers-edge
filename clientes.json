@@ -1,0 +1,108 @@
+{
+  "clientes": [
+    {
+      "slug": "tessaro",
+      "nome": "Tessaro",
+      "grower_id": 92088,
+      "estacoes": [
+        {
+          "id": 39266,
+          "nome": "Santa Ernestina",
+          "feid": "BR-MT-0003"
+        },
+        {
+          "id": 37191,
+          "nome": "Santa Ernestina T03",
+          "feid": "BR-MT-0196"
+        },
+        {
+          "id": 80986,
+          "nome": "Santa Ernestina T04",
+          "feid": "BR-MT-1092"
+        },
+        {
+          "id": 80977,
+          "nome": "Santa Ernestina T05",
+          "feid": "BR-MT-1088"
+        },
+        {
+          "id": 80985,
+          "nome": "Santa Ernestina T07",
+          "feid": "BR-MT-1091"
+        },
+        {
+          "id": 65610,
+          "nome": "Santa Ernestina T11",
+          "feid": "BR-MT-0838"
+        },
+        {
+          "id": 80984,
+          "nome": "Santa Ernestina T12",
+          "feid": "BR-MT-1093"
+        },
+        {
+          "id": 59504,
+          "nome": "Santa Ernestina T13",
+          "feid": "BR-MT-0642"
+        }
+      ]
+    },
+    {
+      "slug": "fenix",
+      "nome": "Fazenda Fênix",
+      "grower_id": 4583088,
+      "estacoes": [
+        {
+          "id": 81109,
+          "nome": "Estação Fenix2",
+          "feid": "BR-MT-1109"
+        },
+        {
+          "id": 81110,
+          "nome": "Estação Ranchão",
+          "feid": "BR-MT-1110"
+        },
+        {
+          "id": 81111,
+          "nome": "Estação Umuarama",
+          "feid": "BR-MT-1111"
+        },
+        {
+          "id": 81112,
+          "nome": "Estação Fenix1",
+          "feid": "BR-MT-1112"
+        },
+        {
+          "id": 81113,
+          "nome": "Estação Jaguaruna",
+          "feid": "BR-MT-1113"
+        },
+        {
+          "id": 81254,
+          "nome": "Estação Ranchão  2",
+          "feid": "BR-MT-1137"
+        },
+        {
+          "id": 81255,
+          "nome": "Estação Jaguaruna 2",
+          "feid": "BR-MT-1138"
+        },
+        {
+          "id": 81256,
+          "nome": "Estação Aurora 8",
+          "feid": "BR-MT-1139"
+        },
+        {
+          "id": 81257,
+          "nome": "Estação Umuarama 1",
+          "feid": "BR-MT-1140"
+        },
+        {
+          "id": 81263,
+          "nome": "Estação Fenix 3",
+          "feid": "BR-MT-1144"
+        }
+      ]
+    }
+  ]
+}
