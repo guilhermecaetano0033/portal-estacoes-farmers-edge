@@ -5,3 +5,11 @@
 #tab-compare .filters{margin:12px 0}#tab-compare .tableWrap{margin-top:16px}#tab-compare input{max-width:100%}#rainMap{min-height:440px;height:58vh} .chartCanvas{min-height:260px} @media(max-width:700px){.tabs{display:flex;overflow-x:auto;gap:5px}.tabs button{flex:0 0 auto;white-space:nowrap;font-size:13px}#rainMap{height:56vh;min-height:330px}.tableTop{flex-wrap:wrap}.actions{flex-wrap:wrap}.actions button{margin:3px 2px}#tab-compare .filters{display:grid;grid-template-columns:1fr 1fr}#tab-compare .filters label{min-width:0}}
 
 #rainMap{background:linear-gradient(120deg,#eaf4fb,#d8ebf0)!important}#rainMap .leaflet-container{background:transparent}#rainMap .leaflet-tile{max-width:none!important;max-height:none!important}#rainMap .leaflet-control-attribution{display:none}
+
+/* V5: mapa-base + legenda e sobreposicoes geograficas */
+#rainMap{background:#e9f0f5!important}
+#rainMap .leaflet-tile-pane{filter:saturate(.75)}
+#rainMap .leaflet-overlay-pane{z-index:450}
+.rainfall-legend{background:rgba(255,255,255,.96);padding:11px 14px;box-shadow:0 2px 12px #20314c33;border-radius:8px;color:#18334f;font-size:12px;line-height:1.5;min-width:160px}
+.rainfall-gradient{height:12px;margin-top:6px;border-radius:3px;background:linear-gradient(90deg,#c8eaf6,#71b5e8,#316cb5,#132d70)}
+.rainfall-ends{display:flex;justify-content:space-between;font-size:10px}.rainfall-legend small{font-size:10px;color:#64788b}
