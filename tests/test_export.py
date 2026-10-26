@@ -14,6 +14,10 @@ class ExportTests(unittest.TestCase):
                          'temperature_c':{'avg':23.4}},81263)
         self.assertEqual(row['chuva_mm'],2.5)
         self.assertEqual(row['temp_media_c'],23.4)
+    def test_wind_flat_fields(self):
+        row=normalize({'local_time':'2026-10-03T10:00:00-04:00','maxWindGust':34.2,'diravgWindDirection':270},81263)
+        self.assertEqual(row['rajada_kmh'],34.2)
+        self.assertEqual(row['direcao_vento_graus'],270)
     def test_months(self):
         self.assertEqual(list(month_range(date(2026,9,29),date(2026,10,3))),[(date(2026,9,29),date(2026,9,30)),(date(2026,10,1),date(2026,10,3))])
 if __name__=='__main__': unittest.main()

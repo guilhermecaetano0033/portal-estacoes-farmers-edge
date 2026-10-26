@@ -1,55 +1,49 @@
-# Portal de Dados Horários — Farmers Edge
+# Portal agrometeorológico v2 — Tessaro e Fazenda Fênix
 
-Dois portais independentes de consulta e exportação de observações **horárias** das estações meteorológicas descritas em `clientes.json`.
+Portal estático responsivo, alimentado pela API horária do FarmCommand por meio de `POST /token-login/` no GitHub Actions. **Não coloque senha, token, cookies, nem arquivos legados com credenciais no repositório.**
 
-## Estrutura e links
+## Novidades
 
-- `site/tessaro.html` — Tessaro (8 estações)
-- `site/fenix.html` — Fazenda Fênix (10 estações)
-- `site/index.html` — página inicial
-- `atualizar.py` — coleta server-to-server, nunca exposto como serviço ao visitante
-- `.github/workflows/publicar.yml` — atualização automática e implantação GitHub Pages
+- Abas **Dashboard**, **Mapa de Chuva** e **Dados Brutos** em cada portal.
+- Gráficos de precipitação diária, temperatura média diária, umidade diária, rajadas máximas e direção média do vento. O gráfico de direção usa graus e os indicadores usam média vetorial.
+- Mapa com estações nas coordenadas dos JSONs. Chuva acumulada por estação e opção de **interpolação indicativa IDW** (não constitui medição por talhão e não utiliza bordaduras). A interpolação é somente uma aproximação local; não utilizar para perícia.
+- Seleção de estação e período, tabela horária paginada, exportação CSV individual, ZIP individual ou ZIP com todas as estações do cliente. A geração de ZIP acontece no navegador; períodos muito longos podem exigir memória considerável no celular.
+- Campos ausentes (`null`) continuam ausentes; não são convertidos em zero. A direção média do vento e a rajada são extraídas também dos campos planos da API (`diravgWindDirection` e `maxWindGust`).
+- Layout responsivo para smartphone e desktop. Os gráficos usam Chart.js, o mapa Leaflet/OpenStreetMap (conexão à internet necessária).
 
-O navegador acessa apenas JSONs estáticos gerados previamente. **As credenciais não chegam ao navegador.** Os downloads de CSV/ZIP são gerados no próprio navegador, somente com os dados selecionados.
+## Instalação (no mesmo repositório)
 
-## Atenção: confidencialidade
+Substitua **todo o conteúdo do projeto**, exceto o diretório oculto `.git/`. Não é necessário refazer `git init`, criar outro repositório ou configurar novamente os Secrets.
 
-**O GitHub Pages padrão não implementa controle de acesso por cliente.** Todas as páginas e arquivos JSON publicados são acessíveis a quem souber ou descobrir a URL, inclusive ambos os clientes. Links diferentes não protegem a informação. Usar apenas se houver autorização para publicar esses dados. Para acesso realmente exclusivo por cliente, hospedar atrás de autenticação e autorização por cliente (ex.: backend privado + Cloudflare Access ou serviço equivalente), com storage segregado.
-
-## Publicar no GitHub
-
-1. Crie um repositório **sem colocar credenciais ou outros códigos legados**; suba o conteúdo desta pasta para a raiz. Os scripts de exemplo enviados não devem ir ao repositório.
-2. Em **Settings → Secrets and variables → Actions → Secrets**, configure **`FARM_USER` e `FARM_PASS`** (login legado mostrado nos seus arquivos) **ou `FARM_TOKEN`** (token já emitido e autorizado). **Jamais** armazene credenciais no JavaScript/HTML ou `clientes.json`.
-3. A autenticação padrão utiliza `POST /token-login/` e insere o token retornado no parâmetro `token` das consultas horárias. Não é necessário configurar `FARM_TOKEN_SCHEME`.
-4. Em **Settings → Pages → Build and deployment**, selecione **GitHub Actions**.
-5. Em **Actions → Atualizar estações e publicar portal → Run workflow**, execute manualmente uma vez. Verifique o log; uma falha de autenticação ou de API não publicará dados novos.
-6. Links, após a publicação: `https://SEU_USUARIO.github.io/NOME_REPOSITORIO/tessaro.html` e `/fenix.html`.
-
-## Atualização
-
-Agendada para **07:17**, timezone `America/Cuiaba` (MT), todos os dias, sujeita a atrasos da fila do GitHub Actions. Exporta até **ontem** (dia completo), com histórico inicial desde **2026-09-01**. Ajuste `BACKFILL_START` no workflow se quiser começar antes. Meses históricos completos são reaproveitados, exceto últimos cinco dias que são buscados novamente.
-
-O código consulta `/weather/{id}/historical-summary-hourly/` em lotes mensais. Para cada observação, preserva valores `null`, sem converter chuva ausente em zero. Quando a API envia tanto o campo `total_precip_mm` quanto uma estrutura `rainfall_mm.sum`, usa o primeiro valor válido. **Amostras ausentes não são inventadas**. O CSV apresenta dados brutos horários, não consolidações diárias.
-
-## Executar localmente
-
-```bash
-python -m pip install -r requirements.txt
-# Configure FARM_USER e FARM_PASS, ou FARM_TOKEN, em variáveis do ambiente.
-python atualizar.py --from 2026-09-01 --to 2026-10-22
-python -m http.server 8000 --directory site
+```powershell
+git add -A
+git commit -m "Novo portal dashboards mapas e historico"
+git push origin main
 ```
 
-Abra `http://localhost:8000/tessaro.html`. O comando de exportação local consulta a API de verdade: não executa sem credenciais válidas. Não é possível conferir esse login a partir deste ambiente.
+Depois confira `Actions` e a publicação do GitHub Pages. Os endereços permanecem:
 
-## Observações técnicas
+- `https://guilhermecaetano0033.github.io/portal-estacoes-farmers-edge/tessaro.html`
+- `https://guilhermecaetano0033.github.io/portal-estacoes-farmers-edge/fenix.html`
 
-- `clientes.json` contém apenas ID, nome e código das estações; os contatos dos cadastros originais foram eliminados.
-- `site/manifest.json` e `site/data/...` são criados na primeira atualização; não comite credenciais, cookies ou respostas internas completas.
-- O ZIP usa o formato padrão **STORE** (sem compressão) para funcionar sem bibliotecas de terceiros. Contém CSVs UTF-8 com BOM e separador `;` para Excel em português.
-- Dados antigos fora do recorte inicial não aparecem até você ajustar `BACKFILL_START` e executar novamente.
-- O fluxo inicial foi elaborado segundo exemplos de endpoints e autenticação dos scripts fornecidos, mas a autorização efetiva da sua conta e a compatibilidade da autenticação precisam ser validadas na primeira execução.
+## Histórico desde as primeiras observações
 
-## Atualização da autenticação (23/10/2026)
+O histórico anterior à versão inicial **não aparece automaticamente de uma só vez**. O workflow busca inicialmente os **12 meses mais recentes** e, em cada execução, amplia retrospectivamente mais **12 meses**, sem baixar novamente os meses já gravados. Assim, a coleta não precisa executar todos os anos em uma única ação. Pode rodar manualmente repetidas vezes em Actions para acelerar o preenchimento retroativo. `BACKFILL_START=2010-01-01` é um **limite de busca configurável**, não uma data de instalação detectada. Se existirem dados antes de 2010, diminua o limite. O início real depende do que a API retornar. Os dados são armazenados em `site/data` **e commitados ao repositório** pelo workflow antes da publicação; o armazenamento é persistente entre execuções. O repositório é público: **todos os JSONs publicados também são públicos**.
 
-Corrigido o método antigo de autenticação via página `/login/`. O script agora obtém token em `/token-login/` com os Secrets e o aplica somente ao host HTTPS `admin.farmcommand.com`, sem imprimir tokens. Não envie o `farm_auth.py` pessoal ao GitHub: ele contém credenciais embutidas. Altere imediatamente qualquer senha exposta nesse arquivo.
+`BACKFILL_MONTHS` (no YAML) ajusta quantos meses anteriores tenta acrescentar a cada execução. Muitas estações/anos poderão esbarrar em limites da API, tempo de Actions, limite de hospedagem, tamanho do repositório ou banda do Pages. O script interrompe a publicação caso uma consulta falhe, para evitar atualização parcial. Consulte logs do workflow.
+
+## Renomear estação permanentemente
+
+A página tem botão **Renomear estação**, que altera o nome **apenas na sessão atual** e baixa um pequeno JSON de referência. Para persistir globalmente (inclusive em outros aparelhos e nas exportações futuras), o proprietário deve abrir **Actions → Renomear estação permanentemente → Run workflow**, preencher cliente, ID e novo nome, e executar. Esse workflow atualiza `clientes.json` por commit. Depois execute **Atualizar estações e publicar portal** para refletir o nome em todas as páginas. Não é necessário editar JSON manualmente. **Um site estático público não pode gravar no repositório de forma segura sem autenticação administrativa.** Nunca inclua token de escrita do GitHub no JavaScript público.
+
+## Segurança
+
+`FARM_USER` e `FARM_PASS` permanecem como GitHub Actions Secrets. O token da API é obtido em tempo de execução no runner e não é incluído nos arquivos de site. Não suba `farm_auth.py` legado que contenha senha no código. Como o repositório já é público, verifique os commits anteriores, os logs de Actions e a autorização de divulgação dos dados dos clientes.
+
+## Testes
+
+```sh
+python -m pip install -r requirements.txt
+python -m unittest discover -s tests -v
+node --check site/app.js
+```

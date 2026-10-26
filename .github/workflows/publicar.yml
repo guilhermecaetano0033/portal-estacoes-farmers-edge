@@ -9,10 +9,12 @@ on:
     paths:
       - 'atualizar.py'
       - 'clientes.json'
-      - 'site/**'
+      - 'site/app.js'
+      - 'site/style.css'
+      - 'site/*.html'
       - '.github/workflows/publicar.yml'
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 concurrency:
@@ -35,8 +37,18 @@ jobs:
           FARM_USER: ${{ secrets.FARM_USER }}
           FARM_PASS: ${{ secrets.FARM_PASS }}
           FARM_TOKEN: ${{ secrets.FARM_TOKEN }}
-          BACKFILL_START: '2026-09-01'
+          BACKFILL_START: '2010-01-01'
+          BACKFILL_MONTHS: '12'
         run: python atualizar.py
+      - name: Persistir histórico no repositório
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data/ site/manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Atualizar banco horário persistente [skip ci]"
+            git push origin HEAD:main
+          fi
       - name: Configurar Pages
         uses: actions/configure-pages@v5
       - name: Preparar artefato
