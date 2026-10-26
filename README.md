@@ -61,3 +61,12 @@ node --check site/app.js
 - Rosa dos ventos de 8 setores utiliza **frequência de direção** das leituras com direção disponível; não é uma rosa ponderada por velocidade.
 - O limite máximo para consulta histórica é 01/01/2010 neste projeto. Se houver leituras anteriores, altere BACKFILL_START e START_DEFAULT.
 - Os dados do portal e os ZIPs podem ser acessados publicamente, pois o repositório/Pages é público. Os valores dos GitHub Secrets não são incluídos.
+
+
+## Versão 4: mapa, histórico e Excel único
+- O mapa dispensa tiles externos do OpenStreetMap, que apareciam incompletos. Estações físicas e a estimativa do centro da fazenda são marcadas. Os valores interpolados **não são medições reais**.
+- Selecione **Fazenda inteira · estimativa** para gráficos agregados por hora, com IDW centrado no centro geográfico das estações. Esse ponto é uma representação e não mede toda a variabilidade espacial da fazenda.
+- O download **ZIP único · histórico horário completo** contém **um único arquivo XLSX**, com colunas iniciando por Estação, ID, horário local e métricas; segunda aba Coordenadas. Se ultrapassar 1 milhão de linhas, os dados horários continuam em abas adicionais do mesmo arquivo. Não exporta dados diários nesse botão.
+- O backfill ocorre **por estação**, 36 meses em cada execução programada. Em Actions → Run workflow, marque `full_history` para buscar até 2010 em uma execução, mas isso pode causar muitos pedidos, rate limit e limite de tempo. Arquivos mensais já concluídos são reutilizados.
+- A primeira data com leitura pode ser diferente da data inicial pesquisada. Como a API pode retornar períodos vazios, `station_coverage` identifica as primeiras datas observadas no histórico já importado. Não garante que o sensor não tenha dados anteriores ao histórico importado.
+- Exportar muitos anos de 18 estações pode exigir memória significativa. Para grande volume, recomenda-se fazer a exportação no desktop.

@@ -184,13 +184,28 @@ def collect(config, start, end, refresh_days):
     counts = {}
     today = date.today()
     earliest = None
+    station_coverage = {}
     for client in config['clientes']:
         slug = client['slug']
         counts[slug] = {}
+        station_coverage[slug] = {}
         for station in client['estacoes']:
             sid = int(station['id'])
             saved = 0
-            for a, b in month_range(start, end):
+            station_files = sorted((SITE / 'data' / slug / str(sid)).glob('????-??.json*'))
+            # Recuo individual: estações recentes não impedem as antigas de chegar a 2017.
+            # Os meses sem medições também ficam registrados, sem confundir ausência com zero.
+            if getattr(collect, 'backfill_months', 0) > 0:
+                anchor = date.fromisoformat(station_files[0].name[:7] + '-01') if station_files else end.replace(day=1)
+                months_back = collect.backfill_months - (0 if station_files else 1)
+                year, month = anchor.year, anchor.month - months_back
+                while month <= 0:
+                    month += 12
+                    year -= 1
+                station_start = max(start, date(year, month, 1))
+            else:
+                station_start = start
+            for a, b in month_range(station_start, end):
                 out = SITE / 'data' / slug / str(sid) / f'{a:%Y-%m}.json.gz'
                 legacy = out.with_suffix('')
                 # Meses históricos prontos não precisam ser consultados novamente.
@@ -234,16 +249,27 @@ def collect(config, start, end, refresh_days):
                 except Exception as exc:
                     errors.append(f'{slug}/{sid}/{a:%Y-%m}: {type(exc).__name__}: falha na consulta (detalhe omitido para proteger o token)')
             counts[slug][str(sid)] = saved
+            # Intervalo EFETIVAMENTE disponível, não simplesmente o limite da busca.
+            available = []
+            for p in sorted((SITE / 'data' / slug / str(sid)).glob('????-??.json*')):
+                try:
+                    rr = read_rows(p)
+                    valid = [r['data_hora_local'][:10] for r in rr if any(r.get(k) is not None for k in ('chuva_mm', 'temp_media_c', 'umidade_media_pct', 'vento_medio_kmh'))]
+                    if valid:
+                        available.extend([min(valid), max(valid)])
+                except (OSError, ValueError, KeyError):
+                    continue
+            station_coverage[slug][str(sid)] = {'first': min(available) if available else None, 'last': max(available) if available else None, 'rows': saved, 'backfilled_from': station_start.isoformat()}
     if errors:
         for err in errors:
             logging.error('%s', err)
         raise RuntimeError(f'{len(errors)} consultas falharam; deploy bloqueado para evitar atualização parcial.')
     write_json(SITE / 'manifest.json', {
         'updated_at_utc': datetime.now(timezone.utc).isoformat(),
-        'period_start': start.isoformat(), 'first_observation': earliest, 'period_end': end.isoformat(),
+        'period_start': min((c['first'] for group in station_coverage.values() for c in group.values() if c['first']), default=start.isoformat()), 'first_observation': earliest, 'period_end': end.isoformat(),
         'timezone_note': TZ_NOTE,
         'clientes': [{k: c[k] for k in ('slug', 'nome', 'estacoes')} for c in config['clientes']],
-        'storage': 'gzip-monthly-v3', 'counts': counts,
+        'storage': 'gzip-monthly-v4', 'counts': counts, 'station_coverage': station_coverage,
     })
 
 
@@ -260,23 +286,7 @@ def main():
     if end < start:
         raise ValueError('Período inválido.')
     cfg = json.loads((ROOT / 'clientes.json').read_text(encoding='utf-8'))
-    # Retomada histórica, mês a mês. Em cada execução amplia a janela em N meses.
-    # Dados de execuções anteriores devem ser persistidos pelo workflow via commit.
-    latest_existing = []
-    for c in cfg['clientes']:
-        for st in c['estacoes']:
-            files = sorted((SITE / 'data' / c['slug'] / str(st['id'])).glob('????-??.json*'))
-            if files:
-                latest_existing.append(date.fromisoformat(files[0].name[:7] + '-01'))
-    if args.backfill_months > 0:
-        anchor = min(latest_existing) if latest_existing else end.replace(day=1)
-        year = anchor.year
-        month = anchor.month - args.backfill_months + (1 if latest_existing else 0)
-        while month <= 0:
-            month += 12
-            year -= 1
-        start = max(start, date(year, month, 1))
-        logging.info('Janela retrospectiva desta execução: %s até %s', start, end)
+    collect.backfill_months = args.backfill_months
     collect(cfg, start, end, args.refresh_days)
     logging.info('Exportação concluída até %s', end)
 

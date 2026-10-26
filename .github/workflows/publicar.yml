@@ -4,6 +4,12 @@ on:
     - cron: '17 7 * * *'
       timezone: 'America/Cuiaba'
   workflow_dispatch:
+    inputs:
+      full_history:
+        description: "Buscar todo o histórico desde 2010 nesta execução (mais demorado)"
+        type: boolean
+        default: false
+        required: false
   push:
     branches: [main]
     paths:
@@ -38,7 +44,7 @@ jobs:
           FARM_PASS: ${{ secrets.FARM_PASS }}
           FARM_TOKEN: ${{ secrets.FARM_TOKEN }}
           BACKFILL_START: '2010-01-01'
-          BACKFILL_MONTHS: '24'
+          BACKFILL_MONTHS: ${{ inputs.full_history && '0' || '36' }}
         run: python atualizar.py
       - name: Persistir histórico no repositório
         run: |
