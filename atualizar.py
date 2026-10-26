@@ -3,6 +3,7 @@ Credenciais exclusivamente por variáveis de ambiente / GitHub Actions Secrets.
 """
 import argparse
 import calendar
+import gzip
 import json
 import logging
 import os
@@ -60,6 +61,7 @@ def normalize(raw, station_id):
     row['rajada_kmh'] = numeric(raw.get('maxWindGust'))
     if row['rajada_kmh'] is None:
         row['rajada_kmh'] = nested_metric(raw, 'wind_gust_kph', 'max')
+    row['radiacao_solar_mjm2'] = numeric(raw.get('sumSolarRadiation'))
     row['direcao_vento_graus'] = numeric(raw.get('diravgWindDirection'))
     if row['direcao_vento_graus'] is None:
         row['direcao_vento_graus'] = nested_metric(raw, 'wind_direction_deg', 'avg')
@@ -158,6 +160,24 @@ def write_json(path, data):
     temp.replace(path)
 
 
+def read_rows(path):
+    if path.exists():
+        if path.suffix == '.gz':
+            with gzip.open(path, 'rt', encoding='utf-8') as fh:
+                return json.load(fh).get('rows', [])
+        return json.loads(path.read_text(encoding='utf-8')).get('rows', [])
+    return []
+
+
+def write_gzip_json(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_suffix(path.suffix + '.tmp')
+    with temp.open('wb') as fh:
+        with gzip.GzipFile(filename='', mode='wb', fileobj=fh, compresslevel=9, mtime=0) as gz:
+            gz.write(json.dumps(data, ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode('utf-8'))
+    temp.replace(path)
+
+
 def collect(config, start, end, refresh_days):
     s = auth_session()
     errors = []
@@ -171,16 +191,23 @@ def collect(config, start, end, refresh_days):
             sid = int(station['id'])
             saved = 0
             for a, b in month_range(start, end):
-                out = SITE / 'data' / slug / str(sid) / f'{a:%Y-%m}.json'
+                out = SITE / 'data' / slug / str(sid) / f'{a:%Y-%m}.json.gz'
+                legacy = out.with_suffix('')
                 # Meses históricos prontos não precisam ser consultados novamente.
-                if out.exists() and b < today - timedelta(days=refresh_days):
+                if (out.exists() or legacy.exists()) and b < today - timedelta(days=refresh_days):
                     try:
-                        existing_rows = json.loads(out.read_text(encoding='utf-8'))['rows']
-                        saved += len(existing_rows)
-                        if existing_rows:
-                            first = existing_rows[0]['data_hora_local'][:10]
-                            earliest = min(earliest, first) if earliest else first
-                        continue
+                        existing_rows = read_rows(out if out.exists() else legacy)
+                        if legacy.exists() and not out.exists():
+                            write_gzip_json(out, {'station_id': sid, 'month': f'{a:%Y-%m}', 'rows': existing_rows})
+                            legacy.unlink()
+                        if existing_rows and 'radiacao_solar_mjm2' not in existing_rows[0]:
+                            logging.info('Arquivo antigo sem radiacao solar; atualizando %s', out)
+                        else:
+                            saved += len(existing_rows)
+                            if existing_rows:
+                                first = existing_rows[0]['data_hora_local'][:10]
+                                earliest = min(earliest, first) if earliest else first
+                            continue
                     except (ValueError, KeyError):
                         logging.warning('Arquivo inválido; refazendo %s', out)
                 logging.info('%s / %s: %s..%s', slug, sid, a, b)
@@ -189,15 +216,17 @@ def collect(config, start, end, refresh_days):
                     rows = [normalize(r, sid) for r in records]
                     rows = [r for r in rows if r is not None and a.isoformat() <= r['data_hora_local'][:10] <= b.isoformat()]
                     # Em meses parciais, preserve o restante do mês previamente coletado.
-                    if out.exists():
+                    if out.exists() or legacy.exists():
                         try:
-                            old = json.loads(out.read_text(encoding='utf-8')).get('rows', [])
+                            old = read_rows(out if out.exists() else legacy)
                             rows += [r for r in old if not (a.isoformat() <= r['data_hora_local'][:10] <= b.isoformat())]
                         except (ValueError, KeyError):
                             pass
                     rows = list({r['data_hora_local']: r for r in rows}.values())
                     rows.sort(key=lambda r: r['data_hora_local'])
-                    write_json(out, {'station_id': sid, 'month': f'{a:%Y-%m}', 'rows': rows})
+                    write_gzip_json(out, {'station_id': sid, 'month': f'{a:%Y-%m}', 'rows': rows})
+                    if legacy.exists():
+                        legacy.unlink()
                     saved += len(rows)
                     if rows:
                         first = rows[0]['data_hora_local'][:10]
@@ -214,7 +243,7 @@ def collect(config, start, end, refresh_days):
         'period_start': start.isoformat(), 'first_observation': earliest, 'period_end': end.isoformat(),
         'timezone_note': TZ_NOTE,
         'clientes': [{k: c[k] for k in ('slug', 'nome', 'estacoes')} for c in config['clientes']],
-        'counts': counts,
+        'storage': 'gzip-monthly-v3', 'counts': counts,
     })
 
 
@@ -236,9 +265,9 @@ def main():
     latest_existing = []
     for c in cfg['clientes']:
         for st in c['estacoes']:
-            files = sorted((SITE / 'data' / c['slug'] / str(st['id'])).glob('????-??.json'))
+            files = sorted((SITE / 'data' / c['slug'] / str(st['id'])).glob('????-??.json*'))
             if files:
-                latest_existing.append(date.fromisoformat(files[0].stem + '-01'))
+                latest_existing.append(date.fromisoformat(files[0].name[:7] + '-01'))
     if args.backfill_months > 0:
         anchor = min(latest_existing) if latest_existing else end.replace(day=1)
         year = anchor.year

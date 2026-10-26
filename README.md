@@ -47,3 +47,17 @@ python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 node --check site/app.js
 ```
+
+## Versão 3 — histórico GZIP, comparativo e Excel
+
+- Histórico persistido em `site/data/<cliente>/<estacao>/AAAA-MM.json.gz` com GZIP nível 9. Não publique credenciais.
+- O frontend usa `DecompressionStream('gzip')` para leitura sob demanda, mantém cache por mês durante a sessão; requer navegador moderno. Não baixa todos os anos de todas as estações ao abrir a página, para não sobrecarregar o celular.
+- A importação retrospectiva progride **24 meses por execução**, desde até 2010 como limite configurado. A busca continua por novas execuções; para verificar que chegou ao início verdadeiro, examine as leituras da estação e a cobertura histórica. Lacunas longas não provam data de instalação.
+- Dados diários exibem chuva e radiação acumuladas, temperatura e umidade médias, rajada máxima e direção vetorial do vento; dados horários mantêm somente hora local no cabeçalho da tabela.
+- Exportação ZIP usa DEFLATE via fflate; cada estação tem dois arquivos XLSX (horário e diário), cada um com **aba 1: medições** e **aba 2: coordenadas** (nome, ID, FEID, latitude e longitude).
+- Aba Comparativo: selecionar anos e janela DD/MM–DD/MM, inclusive safras cruzando 31/12.
+- Mapa IDW somente estimativo; localização dos sensores não é o mesmo que mapa agronômico com polígonos de talhões. Coordenadas vêm de `clientes.json`.
+- Campo de radiação solar: `sumSolarRadiation`, mantido numericamente em MJ/m² conforme o modelo do script climático fornecido. Não inventar valores ausentes.
+- Rosa dos ventos de 8 setores utiliza **frequência de direção** das leituras com direção disponível; não é uma rosa ponderada por velocidade.
+- O limite máximo para consulta histórica é 01/01/2010 neste projeto. Se houver leituras anteriores, altere BACKFILL_START e START_DEFAULT.
+- Os dados do portal e os ZIPs podem ser acessados publicamente, pois o repositório/Pages é público. Os valores dos GitHub Secrets não são incluídos.
