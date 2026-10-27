@@ -1,72 +1,60 @@
-# Portal agrometeorológico v2 — Tessaro e Fazenda Fênix
+# Portal Agrometeorológico V7 — Tessaro e Fazenda Fênix
 
-Portal estático responsivo, alimentado pela API horária do FarmCommand por meio de `POST /token-login/` no GitHub Actions. **Não coloque senha, token, cookies, nem arquivos legados com credenciais no repositório.**
+Dashboard responsivo alimentado por histórico horário do FarmCommand. Credenciais exclusivamente no GitHub Actions Secrets. O site GitHub Pages é **público**; a publicação das bordas dos talhões e dos dados de chuva depende de autorização para compartilhar essas informações.
 
-## Novidades
+## Melhorias V7
 
-- Abas **Dashboard**, **Mapa de Chuva** e **Dados Brutos** em cada portal.
-- Gráficos de precipitação diária, temperatura média diária, umidade diária, rajadas máximas e direção média do vento. O gráfico de direção usa graus e os indicadores usam média vetorial.
-- Mapa com estações nas coordenadas dos JSONs. Chuva acumulada por estação e opção de **interpolação indicativa IDW** (não constitui medição por talhão e não utiliza bordaduras). A interpolação é somente uma aproximação local; não utilizar para perícia.
-- Seleção de estação e período, tabela horária paginada, exportação CSV individual, ZIP individual ou ZIP com todas as estações do cliente. A geração de ZIP acontece no navegador; períodos muito longos podem exigir memória considerável no celular.
-- Campos ausentes (`null`) continuam ausentes; não são convertidos em zero. A direção média do vento e a rajada são extraídas também dos campos planos da API (`diravgWindDirection` e `maxWindGust`).
-- Layout responsivo para smartphone e desktop. Os gráficos usam Chart.js, o mapa Leaflet/OpenStreetMap (conexão à internet necessária).
+### Mapa de chuva por talhão
+- **Período próprio** (data inicial e final) dentro da aba Mapa de chuva, independente dos filtros do Dashboard.
+- Identifica os talhões do `grower_id` via `/asset/?season=...` e recupera as geometrias por `/fieldborder/?assetID={id}&format=json`. Aceita Polygon, MultiPolygon e FeatureCollection; não consulta talhões de outros growers.
+- Calcula a chuva acumulada **medida por estação** no período, descartando horas classificadas como offline. Em cada talhão faz uma amostragem de pontos internos e estima a precipitação via IDW (inverso do quadrado da distância).
+- **Pinta o polígono inteiro do talhão**. Branco indica menor chuva estimada entre os talhões, azul mais escuro indica maior. A legenda informa os extremos em milímetros. Se todos tiverem chuva zero, todos ficam brancos. Áreas sem leitura válida ficam neutras, não falsas áreas secas.
+- Ao tocar/clicar no talhão, abre o nome e a estimativa em mm. As estações físicas são marcadas com acumulados reais e cobertura (horas válidas e offline).
+- Não carrega blocos do OpenStreetMap, evitando os quadrados incompletos mostrados antes. Usa geometria agrícola sobre fundo neutro.
+- **Importante:** IDW é estimativa e não medição em cada talhão. Para mapas comparáveis, use períodos com cobertura adequada da rede. Mapas não são perícia meteorológica.
 
-## Instalação (no mesmo repositório)
+### Offline e Excel
+- Registro horário é **offline** quando nenhum campo de temperatura (média/mínima/máxima) **e** nenhum campo de umidade (média/mínima/máxima) possui valor numérico válido. Zero medido não equivale a dado ausente.
+- As novas linhas guardam `offline: true/false`; dados de anos anteriores são avaliados pela mesma regra na leitura, sem precisar refazer toda a coleta.
+- O portal mostra a situação na tabela horária. **Excel horário e diário** (ZIP completo pré-gerado no GitHub Actions, Excel individual e Excel consolidado por período), bem como CSV, **omitem essas horas offline**. Agregação diária utiliza somente horários válidos.
+- Registros offline permanecem armazenados no JSON histórico para auditoria; não são transformados em chuva zero. É uma regra de qualidade baseada em medições, não diagnóstico definitivo da conectividade da estação.
 
-Substitua **todo o conteúdo do projeto**, exceto o diretório oculto `.git/`. Não é necessário refazer `git init`, criar outro repositório ou configurar novamente os Secrets.
+## Instalando na pasta já conectada ao GitHub
+
+1. Faça um backup da pasta atual. Copie o conteúdo deste projeto sobre os arquivos de código existentes.
+2. **Não apague** `.git/`, `site/data/`, `site/manifest.json` ou eventuais `site/maps/*.geojson` que já foram coletados. Não use `git add -A` sobre o banco histórico ao atualizar a interface.
+3. Confirme com `git status` que **não existe rebase/conflito em andamento**. Se houver, resolva isso antes.
+4. Adicione SOMENTE os arquivos do código:
 
 ```powershell
-git add -A
-git commit -m "Novo portal dashboards mapas e historico"
+git add atualizar.py buscar_talhoes.py gerar_downloads.py offline_utils.py
+git add site/app.js site/style.css site/tessaro.html site/fenix.html
+git add .github/workflows/publicar.yml README.md tests/test_v7.py
+git commit -m "Portal V7 mapa de chuva por talhao e filtro offline"
+git pull --rebase origin main
 git push origin main
 ```
 
-Depois confira `Actions` e a publicação do GitHub Pages. Os endereços permanecem:
+Se `git pull --rebase` gerar `CONFLICT`, **pare** e resolva antes de dar `push`. Não use `git push --force` nem remova dados históricos. O commit de dados automático do GitHub Actions pode modificar `site/data/` e `site/manifest.json` entre duas atualizações.
 
-- `https://guilhermecaetano0033.github.io/portal-estacoes-farmers-edge/tessaro.html`
-- `https://guilhermecaetano0033.github.io/portal-estacoes-farmers-edge/fenix.html`
+## Diagnóstico quando o mapa não mostra talhões
 
-## Histórico desde as primeiras observações
+Abra **Actions → Atualizar estações e publicar portal → Consultar bordaduras do grower**. O log agora informa, por grower, quantos assets foram retornados nas safras consultadas, quantos talhões foram identificados e quantas geometrias reais vieram do `fieldborder`.
 
-O histórico anterior à versão inicial **não aparece automaticamente de uma só vez**. O workflow busca inicialmente os **12 meses mais recentes** e, em cada execução, amplia retrospectivamente mais **12 meses**, sem baixar novamente os meses já gravados. Assim, a coleta não precisa executar todos os anos em uma única ação. Pode rodar manualmente repetidas vezes em Actions para acelerar o preenchimento retroativo. `BACKFILL_START=2010-01-01` é um **limite de busca configurável**, não uma data de instalação detectada. Se existirem dados antes de 2010, diminua o limite. O início real depende do que a API retornar. Os dados são armazenados em `site/data` **e commitados ao repositório** pelo workflow antes da publicação; o armazenamento é persistente entre execuções. O repositório é público: **todos os JSONs publicados também são públicos**.
+Growers configurados no `clientes.json`:
+- Tessaro: `92088`.
+- Fazenda Fênix: `4583088`.
 
-`BACKFILL_MONTHS` (no YAML) ajusta quantos meses anteriores tenta acrescentar a cada execução. Muitas estações/anos poderão esbarrar em limites da API, tempo de Actions, limite de hospedagem, tamanho do repositório ou banda do Pages. O script interrompe a publicação caso uma consulta falhe, para evitar atualização parcial. Consulte logs do workflow.
-
-## Renomear estação permanentemente
-
-A página tem botão **Renomear estação**, que altera o nome **apenas na sessão atual** e baixa um pequeno JSON de referência. Para persistir globalmente (inclusive em outros aparelhos e nas exportações futuras), o proprietário deve abrir **Actions → Renomear estação permanentemente → Run workflow**, preencher cliente, ID e novo nome, e executar. Esse workflow atualiza `clientes.json` por commit. Depois execute **Atualizar estações e publicar portal** para refletir o nome em todas as páginas. Não é necessário editar JSON manualmente. **Um site estático público não pode gravar no repositório de forma segura sem autenticação administrativa.** Nunca inclua token de escrita do GitHub no JavaScript público.
-
-## Segurança
-
-`FARM_USER` e `FARM_PASS` permanecem como GitHub Actions Secrets. O token da API é obtido em tempo de execução no runner e não é incluído nos arquivos de site. Não suba `farm_auth.py` legado que contenha senha no código. Como o repositório já é público, verifique os commits anteriores, os logs de Actions e a autorização de divulgação dos dados dos clientes.
+Se aparecer `0 talhões` ou `0 geometrias`, a API não forneceu limites suficientes para desenhar o mapa. Confira IDs, estrutura de parent dos assets, `season` e permissão da conta FarmCommand. O programa **não inventa** bordas de talhões nem substitui um GeoJSON existente por um arquivo vazio.
 
 ## Testes
 
-```sh
+```powershell
 python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 node --check site/app.js
 ```
 
-## Versão 3 — histórico GZIP, comparativo e Excel
+Há testes para o critério de offline, filtragem de registros antigos no Excel, consulta hierárquica por grower, geometrias GeoJSON e dados ausentes.
 
-- Histórico persistido em `site/data/<cliente>/<estacao>/AAAA-MM.json.gz` com GZIP nível 9. Não publique credenciais.
-- O frontend usa `DecompressionStream('gzip')` para leitura sob demanda, mantém cache por mês durante a sessão; requer navegador moderno. Não baixa todos os anos de todas as estações ao abrir a página, para não sobrecarregar o celular.
-- A importação retrospectiva progride **24 meses por execução**, desde até 2010 como limite configurado. A busca continua por novas execuções; para verificar que chegou ao início verdadeiro, examine as leituras da estação e a cobertura histórica. Lacunas longas não provam data de instalação.
-- Dados diários exibem chuva e radiação acumuladas, temperatura e umidade médias, rajada máxima e direção vetorial do vento; dados horários mantêm somente hora local no cabeçalho da tabela.
-- Exportação ZIP usa DEFLATE via fflate; cada estação tem dois arquivos XLSX (horário e diário), cada um com **aba 1: medições** e **aba 2: coordenadas** (nome, ID, FEID, latitude e longitude).
-- Aba Comparativo: selecionar anos e janela DD/MM–DD/MM, inclusive safras cruzando 31/12.
-- Mapa IDW somente estimativo; localização dos sensores não é o mesmo que mapa agronômico com polígonos de talhões. Coordenadas vêm de `clientes.json`.
-- Campo de radiação solar: `sumSolarRadiation`, mantido numericamente em MJ/m² conforme o modelo do script climático fornecido. Não inventar valores ausentes.
-- Rosa dos ventos de 8 setores utiliza **frequência de direção** das leituras com direção disponível; não é uma rosa ponderada por velocidade.
-- O limite máximo para consulta histórica é 01/01/2010 neste projeto. Se houver leituras anteriores, altere BACKFILL_START e START_DEFAULT.
-- Os dados do portal e os ZIPs podem ser acessados publicamente, pois o repositório/Pages é público. Os valores dos GitHub Secrets não são incluídos.
-
-
-## Versão 4: mapa, histórico e Excel único
-- O mapa dispensa tiles externos do OpenStreetMap, que apareciam incompletos. Estações físicas e a estimativa do centro da fazenda são marcadas. Os valores interpolados **não são medições reais**.
-- Selecione **Fazenda inteira · estimativa** para gráficos agregados por hora, com IDW centrado no centro geográfico das estações. Esse ponto é uma representação e não mede toda a variabilidade espacial da fazenda.
-- O download **ZIP único · histórico horário completo** contém **um único arquivo XLSX**, com colunas iniciando por Estação, ID, horário local e métricas; segunda aba Coordenadas. Se ultrapassar 1 milhão de linhas, os dados horários continuam em abas adicionais do mesmo arquivo. Não exporta dados diários nesse botão.
-- O backfill ocorre **por estação**, 36 meses em cada execução programada. Em Actions → Run workflow, marque `full_history` para buscar até 2010 em uma execução, mas isso pode causar muitos pedidos, rate limit e limite de tempo. Arquivos mensais já concluídos são reutilizados.
-- A primeira data com leitura pode ser diferente da data inicial pesquisada. Como a API pode retornar períodos vazios, `station_coverage` identifica as primeiras datas observadas no histórico já importado. Não garante que o sensor não tenha dados anteriores ao histórico importado.
-- Exportar muitos anos de 18 estações pode exigir memória significativa. Para grande volume, recomenda-se fazer a exportação no desktop.
+**Limite de validação:** estes testes são locais e usam amostras sintéticas. Precisamos conferir as bordas retornadas pela API real e a interface publicada após o primeiro workflow da V7.

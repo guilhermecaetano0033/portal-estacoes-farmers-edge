@@ -13,6 +13,8 @@ from pathlib import Path
 
 import requests
 
+from offline_utils import is_offline
+
 ROOT = Path(__file__).resolve().parent
 SITE = ROOT / 'site'
 API = 'https://admin.farmcommand.com'
@@ -65,6 +67,7 @@ def normalize(raw, station_id):
     row['direcao_vento_graus'] = numeric(raw.get('diravgWindDirection'))
     if row['direcao_vento_graus'] is None:
         row['direcao_vento_graus'] = nested_metric(raw, 'wind_direction_deg', 'avg')
+    row['offline'] = is_offline(row)
     return row
 
 
