@@ -1,60 +1,35 @@
-# Portal Agrometeorológico V7 — Tessaro e Fazenda Fênix
+# Portal Agrometeorológico V8 — Correção das bordas
 
-Dashboard responsivo alimentado por histórico horário do FarmCommand. Credenciais exclusivamente no GitHub Actions Secrets. O site GitHub Pages é **público**; a publicação das bordas dos talhões e dos dados de chuva depende de autorização para compartilhar essas informações.
+**Correção principal:** o código anterior não havia chegado ao repositório publicado: `buscar_talhoes.py` estava ausente. Esta versão consulta as bordas com os mesmos parâmetros do código de telemetria que funciona:
 
-## Melhorias V7
+1. `GET /asset/field/?rootAsset=<grower_id>&season=<season_id>`.
+2. Alternativa, se a consulta direta não retornar fields utilizáveis: `GET /asset/?season=<season_id>` e seleção pela árvore do grower.
+3. `GET /fieldborder/?assetID=<field_id>&seasonID=<season_id>&format=json`.
+4. Salva `site/maps/<cliente>.geojson` quando há polígonos; salva sempre o diagnóstico em `site/maps/status.json`. Não mistura polígonos de safras diferentes.
 
-### Mapa de chuva por talhão
-- **Período próprio** (data inicial e final) dentro da aba Mapa de chuva, independente dos filtros do Dashboard.
-- Identifica os talhões do `grower_id` via `/asset/?season=...` e recupera as geometrias por `/fieldborder/?assetID={id}&format=json`. Aceita Polygon, MultiPolygon e FeatureCollection; não consulta talhões de outros growers.
-- Calcula a chuva acumulada **medida por estação** no período, descartando horas classificadas como offline. Em cada talhão faz uma amostragem de pontos internos e estima a precipitação via IDW (inverso do quadrado da distância).
-- **Pinta o polígono inteiro do talhão**. Branco indica menor chuva estimada entre os talhões, azul mais escuro indica maior. A legenda informa os extremos em milímetros. Se todos tiverem chuva zero, todos ficam brancos. Áreas sem leitura válida ficam neutras, não falsas áreas secas.
-- Ao tocar/clicar no talhão, abre o nome e a estimativa em mm. As estações físicas são marcadas com acumulados reais e cobertura (horas válidas e offline).
-- Não carrega blocos do OpenStreetMap, evitando os quadrados incompletos mostrados antes. Usa geometria agrícola sobre fundo neutro.
-- **Importante:** IDW é estimativa e não medição em cada talhão. Para mapas comparáveis, use períodos com cobertura adequada da rede. Mapas não são perícia meteorológica.
+Safras tentadas por ordem: **1087, 1084, 1083, 1088**. Se a safra atual não retornar geometrias, o script tenta a anterior. O número de talhões encontrados é mostrado nos logs. O resultado efetivo depende dos IDs e da autorização da API.
 
-### Offline e Excel
-- Registro horário é **offline** quando nenhum campo de temperatura (média/mínima/máxima) **e** nenhum campo de umidade (média/mínima/máxima) possui valor numérico válido. Zero medido não equivale a dado ausente.
-- As novas linhas guardam `offline: true/false`; dados de anos anteriores são avaliados pela mesma regra na leitura, sem precisar refazer toda a coleta.
-- O portal mostra a situação na tabela horária. **Excel horário e diário** (ZIP completo pré-gerado no GitHub Actions, Excel individual e Excel consolidado por período), bem como CSV, **omitem essas horas offline**. Agregação diária utiliza somente horários válidos.
-- Registros offline permanecem armazenados no JSON histórico para auditoria; não são transformados em chuva zero. É uma regra de qualidade baseada em medições, não diagnóstico definitivo da conectividade da estação.
+**Na página:** `Fazenda inteira · estimativa · INTERPOLADO` passa a ser a primeira opção e vem selecionada inicialmente. O mapa de chuva V7 já desenha os polígonos sem tiles OpenStreetMap: branco para menor chuva estimada, azul para maior. As versões antigas no navegador não possuem essa lógica; confirme **Portal V8** no rodapé.
 
-## Instalando na pasta já conectada ao GitHub
+**Importante:** não exclua a pasta `site/data`, `site/manifest.json`, `.git` nem os GeoJSON anteriores. Copie os arquivos desta pasta sobre o projeto conectado ao GitHub. Não copie nenhum arquivo com tokens/senhas. Faça `git add` apenas de código e de mapas explicitamente revisados; **não use `git add -A`**.
 
-1. Faça um backup da pasta atual. Copie o conteúdo deste projeto sobre os arquivos de código existentes.
-2. **Não apague** `.git/`, `site/data/`, `site/manifest.json` ou eventuais `site/maps/*.geojson` que já foram coletados. Não use `git add -A` sobre o banco histórico ao atualizar a interface.
-3. Confirme com `git status` que **não existe rebase/conflito em andamento**. Se houver, resolva isso antes.
-4. Adicione SOMENTE os arquivos do código:
+### Arquivos a enviar
 
 ```powershell
-git add atualizar.py buscar_talhoes.py gerar_downloads.py offline_utils.py
+git status
+git add atualizar.py buscar_talhoes.py gerar_downloads.py offline_utils.py requirements.txt
 git add site/app.js site/style.css site/tessaro.html site/fenix.html
-git add .github/workflows/publicar.yml README.md tests/test_v7.py
-git commit -m "Portal V7 mapa de chuva por talhao e filtro offline"
+git add .github/workflows/publicar.yml
+git add README.md
+git commit -m "Portal V8 bordas por safra e fazenda interpolada padrao"
 git pull --rebase origin main
 git push origin main
 ```
 
-Se `git pull --rebase` gerar `CONFLICT`, **pare** e resolva antes de dar `push`. Não use `git push --force` nem remova dados históricos. O commit de dados automático do GitHub Actions pode modificar `site/data/` e `site/manifest.json` entre duas atualizações.
+Se `git pull --rebase` falhar por alterações pendentes, conflitos ou `rebase` em andamento, não force o push; guarde ou integre as alterações antes de continuar. Como o GitHub Actions também cria commits de dados, há risco de divergência. **Nunca faça `git push --force` ou `git reset --hard`.**
 
-## Diagnóstico quando o mapa não mostra talhões
+### Verificação no GitHub Actions
 
-Abra **Actions → Atualizar estações e publicar portal → Consultar bordaduras do grower**. O log agora informa, por grower, quantos assets foram retornados nas safras consultadas, quantos talhões foram identificados e quantas geometrias reais vieram do `fieldborder`.
+Abra a última execução > **Consultar bordaduras do grower**. Veja mensagens por cliente e safra, por exemplo `Tessaro: safra 1087 => X talhões, Y polígonos`. No navegador abra `https://guilhermecaetano0033.github.io/portal-estacoes-farmers-edge/maps/status.json` (ou ajuste com o endereço do seu repositório) e procure o status do cliente. A publicação pode ocorrer após o job terminar.
 
-Growers configurados no `clientes.json`:
-- Tessaro: `92088`.
-- Fazenda Fênix: `4583088`.
-
-Se aparecer `0 talhões` ou `0 geometrias`, a API não forneceu limites suficientes para desenhar o mapa. Confira IDs, estrutura de parent dos assets, `season` e permissão da conta FarmCommand. O programa **não inventa** bordas de talhões nem substitui um GeoJSON existente por um arquivo vazio.
-
-## Testes
-
-```powershell
-python -m pip install -r requirements.txt
-python -m unittest discover -s tests -v
-node --check site/app.js
-```
-
-Há testes para o critério de offline, filtragem de registros antigos no Excel, consulta hierárquica por grower, geometrias GeoJSON e dados ausentes.
-
-**Limite de validação:** estes testes são locais e usam amostras sintéticas. Precisamos conferir as bordas retornadas pela API real e a interface publicada após o primeiro workflow da V7.
+**Nenhuma chamada real à API com credenciais foi realizada nos testes locais.** Uma saída vazia na API deve ser tratada como diagnóstico, não como mapa concluído.
