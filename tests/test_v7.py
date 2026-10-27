@@ -43,15 +43,11 @@ class OfflineTests(unittest.TestCase):
             client = {'slug': 'x', 'nome': 'X', 'estacoes': [{'id': 100, 'nome': 'E100', 'latitude': -12, 'longitude': -56}]}
             with patch.object(gerar_downloads, 'SITE', tmp):
                 hour = tmp / 'hour.xlsx'
-                day = tmp / 'day.xlsx'
-                self.assertEqual(gerar_downloads.workbook(client, False, hour), 1)
-                self.assertEqual(gerar_downloads.workbook(client, True, day), 1)
+                self.assertEqual(gerar_downloads.workbook(client, hour), 1)
             book = load_workbook(hour, read_only=True)
             self.assertEqual(len(list(book['Horarios 1'].rows)), 2)
             self.assertIn('Coordenadas', book.sheetnames)
-            book.close()
-            book = load_workbook(day, read_only=True)
-            self.assertEqual(book['Diarios 1']['J2'].value, 2)
+            self.assertFalse(any('Diarios' in n for n in book.sheetnames))
             book.close()
 
 

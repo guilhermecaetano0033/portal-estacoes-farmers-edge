@@ -7,56 +7,56 @@
       "estacoes": [
         {
           "id": 39266,
-          "nome": "Santa Ernestina",
+          "nome": "FSE09",
           "feid": "BR-MT-0003",
           "latitude": -12.4048,
           "longitude": -55.740738
         },
         {
           "id": 37191,
-          "nome": "Santa Ernestina T03",
+          "nome": "FSE03",
           "feid": "BR-MT-0196",
           "latitude": -12.496,
           "longitude": -55.6931
         },
         {
           "id": 80986,
-          "nome": "Santa Ernestina T04",
+          "nome": "FSE04",
           "feid": "BR-MT-1092",
           "latitude": -12.4778,
           "longitude": -55.7003
         },
         {
           "id": 80977,
-          "nome": "Santa Ernestina T05",
+          "nome": "FSE05",
           "feid": "BR-MT-1088",
           "latitude": -12.4756,
           "longitude": -55.6867
         },
         {
           "id": 80985,
-          "nome": "Santa Ernestina T07",
+          "nome": "FSE07",
           "feid": "BR-MT-1091",
           "latitude": -12.4168,
           "longitude": -55.7401
         },
         {
           "id": 65610,
-          "nome": "Santa Ernestina T11",
+          "nome": "FSE11",
           "feid": "BR-MT-0838",
           "latitude": -12.4196,
           "longitude": -55.7304
         },
         {
           "id": 80984,
-          "nome": "Santa Ernestina T12",
+          "nome": "FSE12",
           "feid": "BR-MT-1093",
           "latitude": -12.4005,
           "longitude": -55.7182
         },
         {
           "id": 59504,
-          "nome": "Santa Ernestina T13",
+          "nome": "FSE13",
           "feid": "BR-MT-0642",
           "latitude": -12.3868,
           "longitude": -55.7189
@@ -70,70 +70,70 @@
       "estacoes": [
         {
           "id": 81109,
-          "nome": "Estação Fenix2",
+          "nome": "FEX02",
           "feid": "BR-MT-1109",
           "latitude": -11.7561,
           "longitude": -56.093
         },
         {
           "id": 81110,
-          "nome": "Estação Ranchão",
+          "nome": "FRO01",
           "feid": "BR-MT-1110",
           "latitude": -11.8267,
           "longitude": -56.0858
         },
         {
           "id": 81111,
-          "nome": "Estação Umuarama",
+          "nome": "FUA07",
           "feid": "BR-MT-1111",
           "latitude": -11.7903,
           "longitude": -56.1383
         },
         {
           "id": 81112,
-          "nome": "Estação Fenix1",
+          "nome": "FEX01",
           "feid": "BR-MT-1112",
           "latitude": -11.7508,
           "longitude": -56.1294
         },
         {
           "id": 81113,
-          "nome": "Estação Jaguaruna",
+          "nome": "FJG01",
           "feid": "BR-MT-1113",
           "latitude": -11.7508,
           "longitude": -56.2642
         },
         {
           "id": 81254,
-          "nome": "Estação Ranchão  2",
+          "nome": "FRO02",
           "feid": "BR-MT-1137",
           "latitude": -11.808069,
           "longitude": -56.068967
         },
         {
           "id": 81255,
-          "nome": "Estação Jaguaruna 2",
+          "nome": "FJG02",
           "feid": "BR-MT-1138",
           "latitude": -11.768686,
           "longitude": -56.261711
         },
         {
           "id": 81256,
-          "nome": "Estação Aurora 8",
+          "nome": "FUA08",
           "feid": "BR-MT-1139",
           "latitude": -11.773421,
           "longitude": -56.147338
         },
         {
           "id": 81257,
-          "nome": "Estação Umuarama 1",
+          "nome": "FUA01",
           "feid": "BR-MT-1140",
           "latitude": -11.793359,
           "longitude": -56.110753
         },
         {
           "id": 81263,
-          "nome": "Estação Fenix 3",
+          "nome": "FEX03",
           "feid": "BR-MT-1144",
           "latitude": -11.751276,
           "longitude": -56.146885

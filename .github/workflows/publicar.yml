@@ -64,7 +64,7 @@ jobs:
             git commit -m "Atualizar banco horário persistente [skip ci]"
             git push origin HEAD:main
           fi
-      - name: Gerar ZIP consolidado no servidor
+      - name: Gerar Excel horário completo no servidor
         run: python gerar_downloads.py
       - name: Configurar Pages
         uses: actions/configure-pages@v5

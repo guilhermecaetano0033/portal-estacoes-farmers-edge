@@ -147,74 +147,57 @@ async function paintMap(){
  }catch(e){$('mapInfo').textContent='Mapa indisponível: '+e.message;console.warn('Mapa:',e.message);}
  finally{$('refreshMap').disabled=false;}
 }
-async function load(){status('Carregando dados horários...');$('load').disabled=true;try{const [a,b]=range();records=$('station').value==='virtual'?await virtualRows(a,b):await stationRows($('station').value,a,b);page=0;drawTable();paintCards();paintCharts();$('csv').disabled=$('zip').disabled=!records.length;$('allzip').disabled=false;status(`Consulta concluída: ${records.length.toLocaleString('pt-BR')} registros.`);if(tab==='map')await paintMap()}catch(e){status('Erro: '+e.message);records=[];drawTable()}finally{$('load').disabled=false}}
-const enc=new TextEncoder();const crcTable=Array.from({length:256},(_,n)=>{let c=n;for(let i=0;i<8;i++)c=c&1?0xEDB88320^(c>>>1):c>>>1;return c>>>0});function crc32(bytes){let c=0xffffffff;for(const v of bytes)c=crcTable[(c^v)&255]^(c>>>8);return(c^0xffffffff)>>>0}
-function zipFiles(files){const parts=[],directory=[];let offset=0;const u16=v=>{const b=new Uint8Array(2);new DataView(b.buffer).setUint16(0,v,true);return b},u32=v=>{const b=new Uint8Array(4);new DataView(b.buffer).setUint32(0,v>>>0,true);return b},cat=(...a)=>{const out=new Uint8Array(a.reduce((n,b)=>n+b.length,0));let p=0;for(const b of a){out.set(b,p);p+=b.length}return out};for(const {name,bytes} of files){const filename=enc.encode(name),crc=crc32(bytes),local=cat(u32(0x04034b50),u16(20),u16(0x800),u16(0),u16(0),u16(0),u32(crc),u32(bytes.length),u32(bytes.length),u16(filename.length),u16(0),filename,bytes);parts.push(local);directory.push(cat(u32(0x02014b50),u16(20),u16(20),u16(0x800),u16(0),u16(0),u16(0),u32(crc),u32(bytes.length),u32(bytes.length),u16(filename.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset),filename));offset+=local.length}const dir=cat(...directory),end=cat(u32(0x06054b50),u16(0),u16(0),u16(files.length),u16(files.length),u32(dir.length),u32(offset),u16(0));return new Blob([...parts,dir,end],{type:'application/zip'})}
-function safe(s){return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_-]/gi,'_')}
-function csvBytes(rows,station){const esc=v=>'"'+String(v??'').replace(/"/g,'""')+'"';const lines=[["Estação","ID estação",...fields.map(f=>f[1])].map(esc).join(';')];for(const r of rows)lines.push([station.nome,r.station_id,...fields.map(([k])=>typeof r[k]==='number'?String(r[k]).replace('.',','):r[k])].map(esc).join(';'));return enc.encode('\uFEFF'+lines.join('\r\n')+'\r\n')}
+async function load(){status('Carregando dados horários...');$('load').disabled=true;try{const [a,b]=range();records=$('station').value==='virtual'?await virtualRows(a,b):await stationRows($('station').value,a,b);page=0;drawTable();paintCards();paintCharts();status(`Consulta concluída: ${records.length.toLocaleString('pt-BR')} registros.`);if(tab==='map')await paintMap()}catch(e){status('Erro: '+e.message);records=[];drawTable()}finally{$('load').disabled=false}}
 function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}
-async function exportData(all,zip){try{const[a,b]=range();const stations=all?client.estacoes:[client.estacoes.find(x=>String(x.id)===$('station').value)].filter(Boolean);if(!stations.length)throw Error('Para exportação selecione uma estação física.');const files=[];for(const st of stations){status(`Preparando ${st.nome}...`);const rows=await stationRows(st.id,a,b);files.push({name:`${safe(st.nome)}_${st.id}.csv`,bytes:csvBytes(rows.filter(r=>!isOffline(r)),st)})}const stem=`${slug}_${a}_${b}`;if(zip)download(zipFiles(files),stem+(all?'_todas_estacoes':'')+'.zip');else download(new Blob([files[0].bytes],{type:'text/csv;charset=utf-8'}),files[0].name);status(`Download preparado: ${files.length} estação(ões).`)}catch(e){status('Erro: '+e.message)}}
 function compareWindow(year,begin,end){const parse=(txt)=>{const m=/^(\d{2})\/(\d{2})$/.exec(txt);if(!m)throw Error('Use datas no formato DD/MM');return [+m[1],+m[2]]};const [d1,m1]=parse(begin),[d2,m2]=parse(end);const a=`${year}-${String(m1).padStart(2,'0')}-${String(d1).padStart(2,'0')}`;let endYear=year;if(m2<m1||(m2===m1&&d2<d1))endYear++;const b=`${endYear}-${String(m2).padStart(2,'0')}-${String(d2).padStart(2,'0')}`;if(Number.isNaN(Date.parse(a))||Number.isNaN(Date.parse(b)))throw Error('Data do comparativo inválida');return[a,b]}
 async function runCompare(){try{const begin=$('compareFrom').value.trim(),end=$('compareTo').value.trim(),ys=$('compareYears').value.trim();const years=(ys?ys.split(',').map(Number):Array.from({length:Math.min(10,Number(manifest.period_end.slice(0,4))-Number(manifest.period_start.slice(0,4))+1)},(_,i)=>Number(manifest.period_end.slice(0,4))-i)).filter(y=>Number.isInteger(y)&&y>=2010&&y<=2100).sort((a,b)=>a-b);const rows=[];for(const year of years){const[a,b]=compareWindow(year,begin,end);const start=a<manifest.period_start?manifest.period_start:a,last=b>manifest.period_end?manifest.period_end:b;const rr=start<=last?($('station').value==='virtual'?await virtualRows(start,last):await stationRows($('station').value,start,last)):[];rows.push({year,period:`${dateText(a)}–${dateText(b)}`,chuva_mm:aggregate(rr,'chuva_mm'),temp_media_c:aggregate(rr,'temp_media_c','avg'),umidade_media_pct:aggregate(rr,'umidade_media_pct','avg'),radiacao_solar_mjm2:aggregate(rr,'radiacao_solar_mjm2'),hours:rr.filter(r=>valid(r.temp_media_c)).length})}const body=$('compareBody');body.replaceChildren();for(const r of rows){const tr=document.createElement('tr');for(const k of ['year','period','chuva_mm','temp_media_c','umidade_media_pct','radiacao_solar_mjm2','hours']){const td=document.createElement('td');td.textContent=typeof r[k]==='number'?fmtNum(r[k]):r[k]??'—';tr.append(td)}body.append(tr)}$('compareInfo').textContent='Comparação da estação selecionada; totais para chuva/radiação e médias para temperatura/umidade. Ausências permanecem sem valor.';compareChart?.destroy();const metric=$('compareMetric').value;compareChart=new Chart($('chartCompare'),{type:'bar',data:{labels:rows.map(r=>String(r.year)),datasets:[{label:$('compareMetric').selectedOptions[0].text,data:rows.map(r=>r[metric]),backgroundColor:'#2171bc'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}})}catch(e){$('compareInfo').textContent='Erro: '+e.message}}
-function createWorkbook(rows,station,level){if(typeof XLSX==='undefined')throw Error('Biblioteca Excel indisponível; verifique conexão à internet.');const wb=XLSX.utils.book_new();const cols=[['data_hora_local','Horário local'],['temp_media_c','Temperatura média (°C)'],['temp_min_c','Temperatura mínima (°C)'],['temp_max_c','Temperatura máxima (°C)'],['umidade_media_pct','Umidade média (%)'],['umidade_min_pct','Umidade mínima (%)'],['umidade_max_pct','Umidade máxima (%)'],['chuva_mm','Chuva (mm)'],['vento_medio_kmh','Vento médio (km/h)'],['vento_max_kmh','Vento máximo (km/h)'],['rajada_kmh','Rajada (km/h)'],['direcao_vento_graus','Direção vento (°)'],['radiacao_solar_mjm2','Radiação solar (MJ/m²)']];const data=level==='daily'?daily(rows).map(d=>({'Data local':d.day,'Temperatura média (°C)':d.temperatura,'Umidade média (%)':d.umidade,'Chuva (mm)':d.chuva,'Rajada (km/h)':d.rajada,'Direção vento (°)':d.direcao,'Radiação solar (MJ/m²)':d.radiacao})):rows.map(r=>Object.fromEntries(cols.map(([k,label])=>[label,k==='data_hora_local'?r[k]?.replace('T',' ').slice(0,16):r[k]])));XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(data.length?data:[{'Sem medições no período':null}]),level==='daily'?'Dados diários':'Dados horários');XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet([{Estação:station.nome,ID:station.id,FEID:station.feid,Latitude:station.latitude,Longitude:station.longitude,Cliente:client.nome}]),'Coordenadas');return new Uint8Array(XLSX.write(wb,{type:'array',bookType:'xlsx',compression:true}))}
-// Um arquivo de planilha por granularidade, consolidando todas as estacoes do cliente.
-// Se mais de 900 mil linhas, abre outra ABA no mesmo Excel (limite XLSX = 1.048.576).
+// Sempre 1 XLSX horário consolidado por cliente, com uma aba auxiliar de coordenadas.
+// Excel permite no máximo 1.048.576 linhas por aba; usamos partições conservadoras.
 const CONSOLIDATED_COLUMNS=['Estação','ID estação','Data/hora local','Temperatura média (°C)','Temperatura mínima (°C)','Temperatura máxima (°C)','Umidade média (%)','Umidade mínima (%)','Umidade máxima (%)','Chuva (mm)','Vento médio (km/h)','Vento máximo (km/h)','Rajada (km/h)','Direção vento (°)','Radiação solar (MJ/m²)'];
 function hourlyRow(st,r){return [st.nome,st.id,(r.data_hora_local||'').replace('T',' ').slice(0,16),r.temp_media_c,r.temp_min_c,r.temp_max_c,r.umidade_media_pct,r.umidade_min_pct,r.umidade_max_pct,r.chuva_mm,r.vento_medio_kmh,r.vento_max_kmh,r.rajada_kmh,r.direcao_vento_graus,r.radiacao_solar_mjm2]}
-function dailyRow(st,r){return [st.nome,st.id,r.day,r.temperatura,null,null,r.umidade,null,null,r.chuva,r.vento,null,r.rajada,r.direcao,r.radiacao]}
-async function consolidatedWorkbook(stations,start,end,kind){
- const wb=XLSX.utils.book_new(),limit=250000;let sheet=1,aoa=[CONSOLIDATED_COLUMNS],total=0;
- const flush=()=>{XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),`${kind==='hourly'?'Horarios':'Diarios'} ${sheet++}`);aoa=[CONSOLIDATED_COLUMNS]};
- for(const st of stations){
-  const allMonthNames=months(start,end);
-  for(let n=0;n<allMonthNames.length;n++){
-   status(`Preparando ${kind==='hourly'?'horários':'diários'}: ${st.nome} · ${n+1}/${allMonthNames.length}`);
-   const rr=(await monthRows(st.id,allMonthNames[n])).filter(r=>r.data_hora_local?.slice(0,10)>=start&&r.data_hora_local?.slice(0,10)<=end&&!isOffline(r));
-   const items=kind==='hourly'?rr:daily(rr);
-   for(const r of items){aoa.push(kind==='hourly'?hourlyRow(st,r):dailyRow(st,r));total++;if(aoa.length>=limit)flush()}
-  }
- }
- if(aoa.length>1||sheet===1)flush();
- XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Estação','ID','FEID','Latitude','Longitude','Cliente'],...stations.map(s=>[s.nome,s.id,s.feid,s.latitude,s.longitude,client.nome])]),'Coordenadas');
- const bytes=new Uint8Array(XLSX.write(wb,{type:'array',bookType:'xlsx',compression:true}));return {bytes,count:total};
-}
-async function exportConsolidated(fullHistory=false){
+async function exportPeriodExcel(){
+ const btn=$('periodExcel');btn.disabled=true;
  try{
-  if(typeof XLSX==='undefined'||typeof fflate==='undefined')throw Error('Bibliotecas Excel e ZIP indisponíveis.');
-  const [start,end]=fullHistory?[manifest.period_start,manifest.period_end]:range();
-  const stations=client.estacoes,files={};
-  const hourly=await consolidatedWorkbook(stations,start,end,'hourly');
-  const dailyData=await consolidatedWorkbook(stations,start,end,'daily');
-  files[`${slug}_dados_horarios.xlsx`]=hourly.bytes;
-  files[`${slug}_dados_diarios.xlsx`]=dailyData.bytes;
-  const blob=new Blob([fflate.zipSync(files,{level:6})],{type:'application/zip'});
-  download(blob,`${slug}_${fullHistory?'historico_completo':start+'_'+end}.zip`);
-  status(`ZIP gerado: 2 arquivos Excel consolidados · ${hourly.count.toLocaleString('pt-BR')} registros horários · ${dailyData.count.toLocaleString('pt-BR')} linhas diárias.`);
- }catch(e){status('Falha na exportação: '+e.message);console.error('Exportação',e.name)}
+  if(typeof XLSX==='undefined')throw Error('Biblioteca Excel indisponível. Verifique sua conexão à internet.');
+  const [start,end]=range(), wb=XLSX.utils.book_new(), limit=100000;
+  let sheetNumber=1,aoa=[CONSOLIDATED_COLUMNS],total=0;
+  const flush=()=>{XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),`Horarios ${sheetNumber++}`);aoa=[CONSOLIDATED_COLUMNS]};
+  for(const st of client.estacoes){
+   const names=months(start,end);
+   for(let i=0;i<names.length;i++){
+    status(`Gerando Excel: ${st.nome} · ${i+1}/${names.length} meses...`);
+    const rows=await monthRows(st.id,names[i]);
+    for(const r of rows){
+     const dt=r.data_hora_local?.slice(0,10);
+     if(!dt||dt<start||dt>end||isOffline(r))continue;
+     aoa.push(hourlyRow(st,r));total++;
+     if(aoa.length>limit)flush();
+    }
+    // Atualiza a interface para que o navegador não pareça travado em períodos grandes.
+    await new Promise(resolve=>setTimeout(resolve,0));
+   }
+  }
+  if(aoa.length>1||sheetNumber===1)flush();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Estação','ID estação','FEID','Latitude','Longitude','Cliente'],...client.estacoes.map(st=>[st.nome,st.id,st.feid,st.latitude,st.longitude,client.nome])]),'Coordenadas');
+  status(`Compactando Excel do período: ${total.toLocaleString('pt-BR')} registros horários...`);
+  await new Promise(resolve=>setTimeout(resolve,0));
+  const buffer=XLSX.write(wb,{type:'array',bookType:'xlsx',compression:true});
+  download(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`${slug}_horario_${start}_${end}.xlsx`);
+  status(`Excel do período iniciado: ${total.toLocaleString('pt-BR')} horas válidas, todas as estações físicas.`);
+ }catch(e){status('Erro ao preparar Excel do período: '+e.message);console.error(e)}
+ finally{btn.disabled=false}
 }
 async function exportFullClient(){
- const btn=$('fullzip');btn.disabled=true;
+ const btn=$('fullExcel');btn.disabled=true;
  try{
-  status('Preparando download do histórico consolidado já gerado no GitHub...');
-  const url=`downloads/${slug}_historico_completo.zip`;
+  status('Consultando Excel horário completo já preparado pelo GitHub Actions...');
+  const url=`downloads/${slug}_historico_horario.xlsx`;
   const r=await fetch(url,{method:'HEAD',cache:'no-store'});
-  if(!r.ok)throw Error('Arquivo ainda não preparado. Execute Atualizar estações e publicar portal no GitHub Actions.');
-  const a=document.createElement('a');a.href=url;a.download=`${slug}_historico_completo.zip`;
+  if(!r.ok)throw Error('Histórico ainda não preparado. Execute a atualização no GitHub Actions.');
+  const a=document.createElement('a');a.href=url;a.download=`${slug}_historico_horario.xlsx`;
   document.body.append(a);a.click();a.remove();
-  status('Download iniciado. O arquivo contém um Excel horário e outro diário, consolidados.');
- }catch(e){status('Erro: '+e.message)}finally{btn.disabled=false}
-}
-async function exportExcelZip(all=false,wholeHistory=false){
- if(all)return exportConsolidated(wholeHistory);
- try{
-  if(typeof fflate==='undefined'||typeof XLSX==='undefined')throw Error('Bibliotecas Excel/ZIP indisponíveis');
-  const [start,end]=wholeHistory?[manifest.period_start,manifest.period_end]:range();
-  const st=client.estacoes.find(x=>String(x.id)===$('station').value);if(!st)throw Error('Selecione uma estação física');
-  const rows=(await stationRows(st.id,start,end)).filter(r=>!isOffline(r)),files={};files[`${safe(st.nome)}_horario.xlsx`]=createWorkbook(rows,st,'hourly');files[`${safe(st.nome)}_diario.xlsx`]=createWorkbook(rows,st,'daily');
-  download(new Blob([fflate.zipSync(files,{level:6})],{type:'application/zip'}),`${slug}_${st.id}_${start}_${end}.zip`);status('ZIP da estação gerado com Excel horário e diário.');
- }catch(e){status('Falha na exportação: '+e.message)}
+  status('Download iniciado: um Excel com todos os registros horários disponíveis e uma aba Coordenadas.');
+ }catch(e){status('Erro no download do histórico: '+e.message)}finally{btn.disabled=false}
 }
 function stationOptions(){const selected=$('station').value||'virtual';const stations=[virtualStation(),...client.estacoes].filter(Boolean);$('station').replaceChildren();for(const s of stations){const o=document.createElement('option');o.value=s.id;o.textContent=`${s.nome} · ${s.feid}`;$('station').append(o)}$('station').value=stations.some(s=>String(s.id)===selected)?selected:String(stations[0]?.id||'')}
-function rename(){const st=client.estacoes.find(x=>String(x.id)===$('station').value);if(!st){status('A estação virtual não pode ser renomeada.');return;}const newName=prompt(`Novo nome da estação ${st.id}:`,st.nome);if(newName===null)return;const clean=newName.trim().slice(0,90);if(!clean){status('Nome inválido.');return}st.nome=clean;stationOptions();$('renameInfo').textContent=`Nome proposto: “${clean}” · ID ${st.id}. Para salvar permanentemente: abra o workflow Renomear estação permanentemente, informe cliente ${slug}, ID ${st.id}, nome “${clean}”; execute o workflow e depois publique o portal.`;const link=document.createElement('a');link.href='https://github.com/guilhermecaetano0033/portal-estacoes-farmers-edge/actions/workflows/renomear_estacao.yml';link.target='_blank';link.rel='noopener noreferrer';link.textContent='Abrir formulário de renomeação permanente no GitHub';$('renameInfo').append(document.createElement('br'),link);status('Prévia local aplicada. Confirme no GitHub para salvar em todas as visitas.')}
-
-async function init(){if(!slug)return;try{const r=await fetch('manifest.json',{cache:'no-store'});if(!r.ok)throw Error('Dados ainda não publicados. Rode a automação.');manifest=await r.json();client=manifest.clientes.find(c=>c.slug===slug);if(!client)throw Error('Cliente não localizado');$('clientTitle').textContent=client.nome;$('stationCount').textContent=client.estacoes.length;$('dataUntil').textContent=dateText(manifest.period_end);$('dataSince').textContent=dateText(manifest.station_coverage?.[slug]?.[String(client.estacoes[0].id)]?.first || manifest.first_observation || manifest.period_start);$('lastUpdate').textContent=new Date(manifest.updated_at_utc).toLocaleString('pt-BR',{timeZone:'America/Cuiaba'});stationOptions();for(const key of ['dateFrom','dateTo']){$(key).min=manifest.period_start;$(key).max=manifest.period_end}const daysAgo=new Date(manifest.period_end+'T12:00:00Z');daysAgo.setUTCDate(daysAgo.getUTCDate()-29);$('compareYears').value=Array.from({length:Math.min(5,Number(manifest.period_end.slice(0,4))-Number(manifest.period_start.slice(0,4))+1)},(_,i)=>Number(manifest.period_end.slice(0,4))-i).reverse().join(',');$('dateFrom').value=daysAgo.toISOString().slice(0,10)<manifest.period_start?manifest.period_start:daysAgo.toISOString().slice(0,10);$('dateTo').value=manifest.period_end;const hr=document.createElement('tr');for(const [,label] of fields){const th=document.createElement('th');th.textContent=label;hr.append(th)}$('thead').append(hr);for(const t of ['dashboard','map','raw','compare'])$('btn-'+t).onclick=()=>tabSet(t);$('load').onclick=load;$('station').onchange=()=>load();$('csv').onclick=()=>exportData(false,false);$('zip').onclick=()=>exportExcelZip(false,false);$('allzip').onclick=()=>exportExcelZip(true,false);$('fullzip').onclick=exportFullClient;$('rawGranularity').onchange=()=>{rawMode=$('rawGranularity').value;page=0;drawTable()};$('runCompare').onclick=runCompare;$('prev').onclick=()=>{page--;drawTable()};$('next').onclick=()=>{page++;drawTable()};for(const key of ['mapDateFrom','mapDateTo']){$(key).min=manifest.period_start;$(key).max=manifest.period_end} $('mapDateFrom').value=$('dateFrom').value;$('mapDateTo').value=$('dateTo').value;$('applyMapDates').onclick=paintMap;$('refreshMap').onclick=paintMap;$('interpolate').onchange=paintMap;$('rename').onclick=rename;tabSet('dashboard');await load()}catch(e){status('Erro: '+e.message)}}init();
+async function init(){if(!slug)return;try{const r=await fetch('manifest.json',{cache:'no-store'});if(!r.ok)throw Error('Dados ainda não publicados. Rode a automação.');manifest=await r.json();client=manifest.clientes.find(c=>c.slug===slug);if(!client)throw Error('Cliente não localizado');$('clientTitle').textContent=client.nome;$('stationCount').textContent=client.estacoes.length;$('dataUntil').textContent=dateText(manifest.period_end);$('dataSince').textContent=dateText(manifest.station_coverage?.[slug]?.[String(client.estacoes[0].id)]?.first || manifest.first_observation || manifest.period_start);$('lastUpdate').textContent=new Date(manifest.updated_at_utc).toLocaleString('pt-BR',{timeZone:'America/Cuiaba'});stationOptions();for(const key of ['dateFrom','dateTo']){$(key).min=manifest.period_start;$(key).max=manifest.period_end}const daysAgo=new Date(manifest.period_end+'T12:00:00Z');daysAgo.setUTCDate(daysAgo.getUTCDate()-29);$('compareYears').value=Array.from({length:Math.min(5,Number(manifest.period_end.slice(0,4))-Number(manifest.period_start.slice(0,4))+1)},(_,i)=>Number(manifest.period_end.slice(0,4))-i).reverse().join(',');$('dateFrom').value=daysAgo.toISOString().slice(0,10)<manifest.period_start?manifest.period_start:daysAgo.toISOString().slice(0,10);$('dateTo').value=manifest.period_end;const hr=document.createElement('tr');for(const [,label] of fields){const th=document.createElement('th');th.textContent=label;hr.append(th)}$('thead').append(hr);for(const t of ['dashboard','map','raw','compare'])$('btn-'+t).onclick=()=>tabSet(t);$('load').onclick=load;$('station').onchange=()=>load();$('periodExcel').onclick=exportPeriodExcel;$('fullExcel').onclick=exportFullClient;$('rawGranularity').onchange=()=>{rawMode=$('rawGranularity').value;page=0;drawTable()};$('runCompare').onclick=runCompare;$('prev').onclick=()=>{page--;drawTable()};$('next').onclick=()=>{page++;drawTable()};for(const key of ['mapDateFrom','mapDateTo']){$(key).min=manifest.period_start;$(key).max=manifest.period_end} $('mapDateFrom').value=$('dateFrom').value;$('mapDateTo').value=$('dateTo').value;$('applyMapDates').onclick=paintMap;$('refreshMap').onclick=paintMap;$('interpolate').onchange=paintMap;tabSet('dashboard');await load()}catch(e){status('Erro: '+e.message)}}init();

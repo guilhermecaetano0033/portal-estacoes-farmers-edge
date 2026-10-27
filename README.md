@@ -1,35 +1,41 @@
-# Portal Agrometeorológico V8 — Correção das bordas
+# Portal Agrometeorológico V9 — nomes definitivos e Excel direto
 
-**Correção principal:** o código anterior não havia chegado ao repositório publicado: `buscar_talhoes.py` estava ausente. Esta versão consulta as bordas com os mesmos parâmetros do código de telemetria que funciona:
+## Nomes permanentes
+Os nomes de **18 estações físicas** foram atualizados em `clientes.json`. IDs, FEIDs, coordenadas e vínculo aos dois growers não foram alterados. `site/manifest.json` é gerado a partir desse cadastro durante a execução do GitHub Actions, propagando os nomes para as páginas.
 
-1. `GET /asset/field/?rootAsset=<grower_id>&season=<season_id>`.
-2. Alternativa, se a consulta direta não retornar fields utilizáveis: `GET /asset/?season=<season_id>` e seleção pela árvore do grower.
-3. `GET /fieldborder/?assetID=<field_id>&seasonID=<season_id>&format=json`.
-4. Salva `site/maps/<cliente>.geojson` quando há polígonos; salva sempre o diagnóstico em `site/maps/status.json`. Não mistura polígonos de safras diferentes.
+- **Tessaro:** FSE03, FSE04, FSE05, FSE07, FSE09, FSE11, FSE12, FSE13.
+- **Fazenda Fênix:** FJG01, FJG02, FUA01, FUA07, FUA08, FRO01, FRO02, FEX01, FEX02, FEX03.
+- `Estação Aurora 8` (ID 81256) foi mapeada para `FUA08`, correspondente ao nome fornecido como "Estação Aura 8".
 
-Safras tentadas por ordem: **1087, 1084, 1083, 1088**. Se a safra atual não retornar geometrias, o script tenta a anterior. O número de talhões encontrados é mostrado nos logs. O resultado efetivo depende dos IDs e da autorização da API.
+O botão de renomear foi removido das páginas. A estação virtual `Fazenda inteira · estimativa` permanece como opção padrão, não participa dos Excel e não representa sensor físico.
 
-**Na página:** `Fazenda inteira · estimativa · INTERPOLADO` passa a ser a primeira opção e vem selecionada inicialmente. O mapa de chuva V7 já desenha os polígonos sem tiles OpenStreetMap: branco para menor chuva estimada, azul para maior. As versões antigas no navegador não possuem essa lógica; confirme **Portal V8** no rodapé.
+## Exportações
 
-**Importante:** não exclua a pasta `site/data`, `site/manifest.json`, `.git` nem os GeoJSON anteriores. Copie os arquivos desta pasta sobre o projeto conectado ao GitHub. Não copie nenhum arquivo com tokens/senhas. Faça `git add` apenas de código e de mapas explicitamente revisados; **não use `git add -A`**.
+Na aba **Dados brutos**, somente dois botões:
 
-### Arquivos a enviar
+1. **Baixar Excel do período:** um XLSX gerado no navegador com todas as estações físicas e somente os registros horários do intervalo selecionado; contém abas `Horarios 1`, `Horarios 2` ... (quando necessário) e `Coordenadas`.
+2. **Baixar Excel do histórico completo:** download de `site/downloads/<slug>_historico_horario.xlsx`, gerado automaticamente pelo workflow em `gerar_downloads.py` depois de coletar dados. Não monta históricos gigantes no celular.
+
+As planilhas excluem horas sem quaisquer medições de temperatura e umidade (`offline_utils.is_offline`), mas nunca alteram a base original. Dados horários locais, chuva, temperatura, umidade, vento, rajada e radiação solar são preservados. A visualização diária na página continua disponível, sem gerar outro XLSX diário.
+
+O Excel completo contém **o histórico já coletado**, não períodos que ainda não foram importados. Use `full_history` no workflow quando necessário, observando os limites do GitHub Actions/Pages.
+
+## Instalação segura
+
+**Não apague** `.git`, `site/data`, `site/manifest.json` nem `site/maps`. Copie/substitua somente os arquivos de código e `clientes.json`. Envie ao Git somente:
 
 ```powershell
 git status
-git add atualizar.py buscar_talhoes.py gerar_downloads.py offline_utils.py requirements.txt
-git add site/app.js site/style.css site/tessaro.html site/fenix.html
-git add .github/workflows/publicar.yml
-git add README.md
-git commit -m "Portal V8 bordas por safra e fazenda interpolada padrao"
+git add clientes.json gerar_downloads.py site/app.js site/tessaro.html site/fenix.html .github/workflows/publicar.yml README.md tests/test_v9.py
+git commit -m "Portal V9 nomes definitivos e Excel horario direto"
 git pull --rebase origin main
 git push origin main
 ```
 
-Se `git pull --rebase` falhar por alterações pendentes, conflitos ou `rebase` em andamento, não force o push; guarde ou integre as alterações antes de continuar. Como o GitHub Actions também cria commits de dados, há risco de divergência. **Nunca faça `git push --force` ou `git reset --hard`.**
+Se `git pull --rebase` apresentar `CONFLICT` ou alterações pendentes, **não use `push --force`**. O GitHub Actions atualiza o histórico por commits automatizados e deve ser sincronizado sem sobrescrever a base.
 
-### Verificação no GitHub Actions
+Após o workflow ficar verde, confira o rodapé `Portal V9`, os nomes no seletor e a etapa **Gerar Excel horário completo no servidor**. O histórico completo será publicado em `downloads/<slug>_historico_horario.xlsx`.
 
-Abra a última execução > **Consultar bordaduras do grower**. Veja mensagens por cliente e safra, por exemplo `Tessaro: safra 1087 => X talhões, Y polígonos`. No navegador abra `https://guilhermecaetano0033.github.io/portal-estacoes-farmers-edge/maps/status.json` (ou ajuste com o endereço do seu repositório) e procure o status do cliente. A publicação pode ocorrer após o job terminar.
+## Mapa de chuva
 
-**Nenhuma chamada real à API com credenciais foi realizada nos testes locais.** Uma saída vazia na API deve ser tratada como diagnóstico, não como mapa concluído.
+A V9 não altera `buscar_talhoes.py` nem a lógica geográfica do `site/app.js` anterior, exceto o código de exportação e renomeação. O mapa por talhões da V8 deve continuar funcionando. A ausência de fundo geográfico não interfere na interpretação dos polígonos.
