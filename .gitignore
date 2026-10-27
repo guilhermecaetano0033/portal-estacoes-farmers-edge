@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 farm_auth.py
 *.log
+
+site/downloads/
