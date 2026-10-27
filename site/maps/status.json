@@ -1,0 +1,46 @@
+{
+  "version": 8,
+  "updated_at_utc": "2026-10-27T17:30:26+00:00",
+  "clientes": {
+    "tessaro": {
+      "grower_id": 92088,
+      "season_id": 1084,
+      "polygons": 18,
+      "fields": 18,
+      "method": "asset_field_rootAsset+season",
+      "attempts": [
+        {
+          "season": 1087,
+          "fields": 0,
+          "polygons": 0,
+          "source": "asset_tree_season"
+        },
+        {
+          "season": 1084,
+          "fields": 18,
+          "polygons": 18,
+          "source": "asset_field_rootAsset+season",
+          "misses": {}
+        }
+      ],
+      "status": "ok"
+    },
+    "fenix": {
+      "grower_id": 4583088,
+      "season_id": 1087,
+      "polygons": 5,
+      "fields": 5,
+      "method": "asset_field_rootAsset+season",
+      "attempts": [
+        {
+          "season": 1087,
+          "fields": 5,
+          "polygons": 5,
+          "source": "asset_field_rootAsset+season",
+          "misses": {}
+        }
+      ],
+      "status": "ok"
+    }
+  }
+}
