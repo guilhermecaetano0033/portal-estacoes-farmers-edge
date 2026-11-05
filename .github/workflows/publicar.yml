@@ -18,6 +18,7 @@ on:
       - 'gerar_downloads.py'
       - 'offline_utils.py'
       - 'clientes.json'
+      - 'preparar_publicacao.py'
       - 'site/app.js'
       - 'site/style.css'
       - 'site/*.html'
@@ -66,12 +67,14 @@ jobs:
           fi
       - name: Gerar Excel horário completo no servidor
         run: python gerar_downloads.py
+      - name: Preparar publicação enxuta preservando o histórico
+        run: python preparar_publicacao.py
       - name: Configurar Pages
         uses: actions/configure-pages@v5
       - name: Preparar artefato
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./site
+          path: ./site_publicacao
       - id: deployment
         name: Publicar site
         uses: actions/deploy-pages@v4
