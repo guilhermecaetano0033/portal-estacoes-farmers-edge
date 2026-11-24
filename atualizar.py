@@ -9,6 +9,7 @@ import logging
 import os
 import time
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import requests
@@ -20,6 +21,7 @@ SITE = ROOT / 'site'
 API = 'https://admin.farmcommand.com'
 TZ_NOTE = 'Horário local conforme retornado pela estação/FarmCommand'
 START_DEFAULT = '2010-01-01'  # limite de busca retrospectiva; se houver registros anteriores, amplie
+FARM_TIMEZONE = os.environ.get('FARM_TIMEZONE', 'America/Cuiaba')
 FIELDS = {
     'avg_temp_c': 'temp_media_c', 'min_temp_c': 'temp_min_c', 'max_temp_c': 'temp_max_c',
     'avg_relative_humidity': 'umidade_media_pct',
@@ -28,6 +30,10 @@ FIELDS = {
     'max_windspeed_kph': 'vento_max_kmh',
 }
 
+
+def local_today():
+    """Data atual da fazenda, independente do fuso UTC do GitHub Actions."""
+    return datetime.now(ZoneInfo(FARM_TIMEZONE)).date()
 
 def numeric(raw):
     if isinstance(raw, bool) or raw is None:
@@ -185,7 +191,7 @@ def collect(config, start, end, refresh_days):
     s = auth_session()
     errors = []
     counts = {}
-    today = date.today()
+    today = local_today()
     earliest = None
     station_coverage = {}
     for client in config['clientes']:
@@ -285,7 +291,8 @@ def main():
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     start = date.fromisoformat(args.start)
-    end = date.fromisoformat(args.end) if args.end else date.today() - timedelta(days=1)
+    end = date.fromisoformat(args.end) if args.end else local_today() - timedelta(days=1)
+    logging.info('Fuso das fazendas: %s | Data local: %s | Coletar ate: %s', FARM_TIMEZONE, local_today(), end)
     if end < start:
         raise ValueError('Período inválido.')
     cfg = json.loads((ROOT / 'clientes.json').read_text(encoding='utf-8'))

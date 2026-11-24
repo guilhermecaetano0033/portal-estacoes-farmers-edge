@@ -1,7 +1,7 @@
 name: Atualizar estações e publicar portal
 on:
   schedule:
-    - cron: '17 7 * * *'
+    - cron: '0 0 * * *'
       timezone: 'America/Cuiaba'
   workflow_dispatch:
     inputs:
@@ -48,6 +48,7 @@ jobs:
           FARM_PASS: ${{ secrets.FARM_PASS }}
           FARM_TOKEN: ${{ secrets.FARM_TOKEN }}
           BACKFILL_START: '2010-01-01'
+          FARM_TIMEZONE: 'America/Cuiaba'
           BACKFILL_MONTHS: ${{ inputs.full_history && '0' || '36' }}
         run: python atualizar.py
       - name: Consultar bordaduras do grower
